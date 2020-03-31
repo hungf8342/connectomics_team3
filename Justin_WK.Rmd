@@ -1,0 +1,80 @@
+---
+title: "EDA"
+author: "Justin Weltz"
+date: "3/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Reading in Data
+
+We read in the MWM data and connectome matrices:
+```{r cars}
+mwm<-read.csv("../data/mwm.csv")
+```
+
+
+```{r}
+filePaths <- list.files("data/Connectomes",
+                        "\\.csv$", full.names = TRUE)
+connectome_matlist <- lapply(filePaths,function(x) read.csv(x,header=FALSE) %>% as.matrix())
+
+network <- connectome_matlist[[1]]
+network2 <- connectome_matlist[[2]]
+```
+
+Membership
+```{r}
+require(igraph)
+require(qgraph)
+bin_network <- apply(network,1, function(x) x > 0)
+bin_network2 <- apply(network2,1, function(x) x > 0)
+
+graph_store1 <- qgraph(bin_network)
+graph_store2 <- graph_from_adjacency_matrix(bin_network, mode = "undirected")
+sgc1 <- cluster_spinglass(graph_store2)
+qgraph(bin_network, color = sgc1$membership)
+cfg1 <- cluster_fast_greedy(graph_store2)
+plot(cfg1, graph_store2)
+
+graph_store2
+
+
+graph2_store1 <- qgraph(bin_network2)
+graph2_store2 <- graph_from_adjacency_matrix(bin_network2, mode = "undirected")
+sgc2 <- cluster_spinglass(graph2_store2)
+sort(sgc2$membership) - sort(sgc1$membership)
+
+
+#cliques(graph_store2)
+#cohesive_blocks(graph_store2)
+coreness(graph_store2)
+#centralize(graph_store2)
+hist(degree(graph_store2))
+compare(sgc1, sgc2)
+count_triangles(graph_store2)
+?count_triangles
+count_motifs(graph_store2)
+count_isomorphisms(graph_store2, graph2_store2)
+diameter(graph2_store2)
+plot(difference(graph_store2, graph2_store2))
+diversity(graph_store2)
+ego_size(graph_store2)
+plot(compose(graph_store2, graph2_store2))
+edge_density(graph_store2)
+plot(intersection(graph_store2, graph2_store2))
+?diameter
+#graph.knn
+#crossing
+#modularity
+#random_walks
+#Generate Random Graphs
+# random dot product graphs from latent position vector
+#subgraph_isomorphic
+#topological sorting
+#convert a general graph into a forest
+```
