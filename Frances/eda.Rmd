@@ -24,3 +24,36 @@ filePaths <- list.files("../data/Connectomes",
 connectome_matlist <- lapply(filePaths,function(x) read.csv(x,header=FALSE) %>% as.matrix())
 ```
 
+## Helper Functions
+
+Binarizing Matrix Function:
+```{r}
+# takes matrix (matr) and binarizes each element 
+# based on a threshold (strict less than)
+
+binarize_matrix <- function(matr, threshold) {
+  
+  for (i in 1:length(matr)) {
+    matr[[i]] <- ifelse(matr[[i]] < threshold, 0, 1)
+  }
+  
+  return(matr)
+}
+
+```
+
+Difference in Networks (binarized matrices)
+```{r}
+# returns vector of 
+network_diffs <- function(matr_1,matr_2,threshold) {
+  
+  # frequency matrix of -1,0,1 resulting from difference of bin. matrices
+  diff_freq_matr <- binarize_matrix(matr_1,threshold) - 
+    binarize_matrix(matr_2,threshold) %>% 
+    table() %>%
+    as.matrix()
+  
+  return(diff_freq_matr[c(1,3)])
+}
+```
+
