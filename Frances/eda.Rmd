@@ -44,12 +44,14 @@ binarize_matrix <- function(matr, threshold) {
 
 Difference in Networks (binarized matrices)
 ```{r}
-# returns vector of 
+# returns vector of number of edge deletions and additions needed for 
+# binarized matr_1 to become binarized matr_2
+
 network_diffs <- function(matr_1,matr_2,threshold) {
   
   # frequency matrix of -1,0,1 resulting from difference of bin. matrices
-  diff_freq_matr <- binarize_matrix(matr_1,threshold) - 
-    binarize_matrix(matr_2,threshold) %>% 
+  diff_freq_matr <- (binarize_matrix(matr_2,threshold) - 
+    binarize_matrix(matr_1,threshold)) %>% 
     table() %>%
     as.matrix()
   
