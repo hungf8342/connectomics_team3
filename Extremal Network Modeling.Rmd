@@ -1,0 +1,46 @@
+---
+title: "Changepoint Gibbs Sampler"
+author: "Justin Weltz"
+date: "3/30/2020"
+output: pdf_document
+---
+
+Summarize performance data!
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+$$P(\Psi | (B_i, y_i)) \propto \prod_{i=1}^n P(B_i | Y_i, \Phi)P(\Psi) = \prod_{i=1}^n  (\pi(y_i)f(B_i; B_1) + (1-\pi(y_i))f(B_i; B_0))P(\Psi)$$
+
+where: 
+
+$\pi(y_i)$ is a monotonic, linear interpolation function $\pi(y_i) \in [0,1]$ - just standardize the data!
+
+$$\Psi = \begin{pmatrix} \psi_{00} & \psi_{01} \\ 
+\psi_{10} & \psi_{11} \end{pmatrix}$$
+
+$$f(B_i; B_0) = \prod_{j=1}^R \prod_{l<j}        \psi_{00}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{01}^{1(B_i[j,l]=0,B_1[j,l]=1)}$$
+
+$$f(B_i; B_1) = \prod_{j=1}^R \prod_{l<j} \psi_{10}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{11}^{1(B_i[j,l]=0,B_1[j,l]=1)}$$
+
+Steps to fitting the basic model:
+
+1. Establish priors for the $\psi$ parameters - Uniform Beta distribution
+
+2. Sample from the posterior with a Gibbs Sampler using the following steps:
+
+  a. determine which cluster each brain belongs to by drawing membership $C_i$ - where $C_i = 1$ has probability $\pi(y_i)$ and corresponds to being part of the cluster centered at $B_1$. 
+  b. Conditional on membership (data augmentation), compute the Beta-Binomial conjugate update for each parameter.
+  c. Repeat
+
+Steps to fitting the slightly more complicated model:
+
+$\pi(y_i) = \  standardized \ y_i^\beta$
+
+steps a and b stay the same:
+
+c. Sample $\beta$ using a conditional metropolis-hastings step.
+
+d. repeat
