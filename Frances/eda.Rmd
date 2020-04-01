@@ -27,7 +27,8 @@ connectome_matlist <- lapply(filePaths,function(x) read.csv(x,header=FALSE) %>% 
 
 ## Helper Functions
 
-Binarizing Matrix Function:
+### Binarizing Matrix Function
+
 ```{r}
 # takes matrix (matr) and binarizes each element 
 # based on a threshold (strict less than)
@@ -43,7 +44,7 @@ binarize_matrix <- function(matr, threshold) {
 
 ```
 
-Difference in Networks (binarized matrices)
+### Difference in Networks (binarized matrices)
 
 ```{r}
 # returns vector of number of edge deletions and additions needed for 
@@ -62,7 +63,7 @@ network_diffs <- function(matr_1,matr_2,threshold) {
 }
 ```
 
-## Indexing Matrices by Runno
+### Indexing Matrices by Runno
 ```{r}
 
 # create list of identifiers corresponding to list of connectomes
@@ -70,14 +71,15 @@ regexp <- "N[[:digit:]]{5}"
 matrix_labels <- lapply(filePaths,function(x) str_extract(x,regexp)) %>% unlist()
 
 # takes vector of runnos and finds corresponding matrices
+# returns vector of matrices if they exist, otherwise returns empty matrix
 
-find_connect <- function(runnos) {
+find_connects <- function(runnos) {
   
   idxs <- which(matrix_labels %in% runnos)
   
   if (length(idxs) == 0) {
     print("No matches")
-    return(0)
+    return(matrix())
   }
   
   return(connectome_matlist[idxs])
