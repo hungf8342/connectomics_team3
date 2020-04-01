@@ -21,7 +21,7 @@ $\pi(y_i)$ is a monotonic, linear interpolation function $\pi(y_i) \in [0,1]$ - 
 $$\Psi = \begin{pmatrix} \psi_{00} & \psi_{01} \\ 
 \psi_{10} & \psi_{11} \end{pmatrix}$$
 
-$$f(B_i; B_0) = \prod_{j=1}^R \prod_{l<j}        \psi_{00}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{01}^{1(B_i[j,l]=0,B_1[j,l]=1)}$$
+$$f(B_i; B_0) = \prod_{j=1}^R \prod_{l<j}        \psi_{00}^{1(B_i[j,l]=1,B_0[j,l]=0)}\psi_{01}^{1(B_i[j,l]=0,B_0[j,l]=1)}$$
 
 $$f(B_i; B_1) = \prod_{j=1}^R \prod_{l<j} \psi_{10}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{11}^{1(B_i[j,l]=0,B_1[j,l]=1)}$$
 

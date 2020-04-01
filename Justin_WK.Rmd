@@ -14,7 +14,7 @@ library(tidyverse)
 
 We read in the MWM data and connectome matrices:
 ```{r cars}
-mwm<-read.csv("../data/mwm.csv")
+mwm<-read.csv("data/mwm.csv")
 ```
 
 
@@ -27,54 +27,316 @@ network <- connectome_matlist[[1]]
 network2 <- connectome_matlist[[2]]
 ```
 
-Membership
+Playing with I-graph functions
+# ```{r}
+# require(igraph)
+# require(qgraph)
+# bin_network <- apply(network,1, function(x) x > 0)
+# bin_network2 <- apply(network2,1, function(x) x > 0)
+#
+# graph_store1 <- qgraph(bin_network)
+# graph_store2 <- graph_from_adjacency_matrix(bin_network, mode = "undirected")
+# sgc1 <- cluster_spinglass(graph_store2)
+# qgraph(bin_network, color = sgc1$membership)
+# cfg1 <- cluster_fast_greedy(graph_store2)
+# plot(cfg1, graph_store2)
+#
+# graph_store2
+# 
+# 
+# graph2_store1 <- qgraph(bin_network2)
+# graph2_store2 <- graph_from_adjacency_matrix(bin_network2, mode = "undirected")
+# sgc2 <- cluster_spinglass(graph2_store2)
+# sort(sgc2$membership) - sort(sgc1$membership)
+# 
+# 
+# #cliques(graph_store2)
+# #cohesive_blocks(graph_store2)
+# coreness(graph_store2)
+# #centralize(graph_store2)
+# hist(degree(graph_store2))
+# compare(sgc1, sgc2)
+# count_triangles(graph_store2)
+# ?count_triangles
+# count_motifs(graph_store2)
+# count_isomorphisms(graph_store2, graph2_store2)
+# diameter(graph2_store2)
+# plot(difference(graph_store2, graph2_store2))
+# diversity(graph_store2)
+# ego_size(graph_store2)
+# plot(compose(graph_store2, graph2_store2))
+# edge_density(graph_store2)
+# plot(intersection(graph_store2, graph2_store2))
+# ?diameter
+# #graph.knn
+# #crossing
+# #modularity
+# #random_walks
+# #Generate Random Graphs
+# # random dot product graphs from latent position vector
+# #subgraph_isomorphic
+# #topological sorting
+# #convert a general graph into a forest
+# ```
+
+## Helper Functions
+
+Binarizing Matrix Function:
 ```{r}
-require(igraph)
-require(qgraph)
-bin_network <- apply(network,1, function(x) x > 0)
-bin_network2 <- apply(network2,1, function(x) x > 0)
+# takes matrix (matr) and binarizes each element 
+# based on a threshold (strict less than)
 
-graph_store1 <- qgraph(bin_network)
-graph_store2 <- graph_from_adjacency_matrix(bin_network, mode = "undirected")
-sgc1 <- cluster_spinglass(graph_store2)
-qgraph(bin_network, color = sgc1$membership)
-cfg1 <- cluster_fast_greedy(graph_store2)
-plot(cfg1, graph_store2)
+binarize_matrix <- function(matr, threshold) {
+  
+  for (i in 1:length(matr)) {
+    matr[[i]] <- ifelse(matr[[i]] < threshold, 0, 1)
+  }
+  
+  return(matr)
+}
 
-graph_store2
-
-
-graph2_store1 <- qgraph(bin_network2)
-graph2_store2 <- graph_from_adjacency_matrix(bin_network2, mode = "undirected")
-sgc2 <- cluster_spinglass(graph2_store2)
-sort(sgc2$membership) - sort(sgc1$membership)
-
-
-#cliques(graph_store2)
-#cohesive_blocks(graph_store2)
-coreness(graph_store2)
-#centralize(graph_store2)
-hist(degree(graph_store2))
-compare(sgc1, sgc2)
-count_triangles(graph_store2)
-?count_triangles
-count_motifs(graph_store2)
-count_isomorphisms(graph_store2, graph2_store2)
-diameter(graph2_store2)
-plot(difference(graph_store2, graph2_store2))
-diversity(graph_store2)
-ego_size(graph_store2)
-plot(compose(graph_store2, graph2_store2))
-edge_density(graph_store2)
-plot(intersection(graph_store2, graph2_store2))
-?diameter
-#graph.knn
-#crossing
-#modularity
-#random_walks
-#Generate Random Graphs
-# random dot product graphs from latent position vector
-#subgraph_isomorphic
-#topological sorting
-#convert a general graph into a forest
 ```
+
+Difference in Networks (binarized matrices)
+```{r}
+# returns vector of number of edge deletions and additions needed for 
+# binarized matr_1 to become binarized matr_2
+
+network_diffs <- function(matr_1,matr_2,threshold) {
+  
+  # frequency matrix of -1,0,1 resulting from difference of bin. matrices
+  diff_freq_matr <- (binarize_matrix(matr_2,threshold) - 
+    binarize_matrix(matr_1,threshold)) %>% 
+    table() %>%
+    as.matrix()
+  # Avoid NAs
+  if(is.na(diff_freq_matr[3]))
+    diff_freq_matr[3]=0
+  
+  return(diff_freq_matr[c(1,3)])
+}
+```
+
+```{r}
+network_diffs <- function(matr_1,matr_2,threshold) {
+  
+  # frequency matrix of -1,0,1 resulting from difference of bin. matrices
+  diff_freq_matr <- binarize_matrix(matr_2,threshold) - 
+    binarize_matrix(matr_1,threshold)
+  add=sum(diff_freq_matr==1)
+  del=sum(diff_freq_matr==-1)
+  return(c(del,add))
+}
+```
+
+
+Sampler Function
+
+```{r}
+
+sampler <- function(iter, pis, B0, B1, data){
+#Iteration and Initialization of Value
+iter=1000
+n= length(data)
+Cs=rep(0,n)
+Psi=matrix(0.5,2,2)
+Psi_save = matrix(0,iter,4)
+
+for(t in 1:iter){
+  # draw C
+  for (i in 1:n){
+     #Assign membership to the cluster around B1 or B0 based on pis
+    Cs[i] = sample(x =  c(1,0), size = 1, prob= c(pis[i], 1-pis[i]))
+  }
+  # Update Psi
+  add_B0=0
+  del_B0=0
+  add_B1=0
+  del_B1=0
+  
+  #For each network, if the network has been grouped around B0, then compute the additions and subtractions needed to get from B_i to B0
+  #if the network has been grouped around B1, then compute the additions and subtractions needed to get from B_i to B1
+  for (i in 1:n){
+    if (Cs[i]==0){
+      #deletions from B_i to B0
+      del_B0=del_B0+network_diffs(data[[i]],B0,0.5)[1]
+      #additions form B_i to B0
+      add_B0=add_B0+network_diffs(data[[i]],B0,0.5)[2]
+    }
+    else{
+      #deletions from B_i to B1
+      del_B1=del_B1+network_diffs(data[[i]],B1,0.5)[1]
+      #additions from B_i to B1
+      add_B1=add_B1+network_diffs(data[[i]],B1,0.5)[2]
+    }
+  }
+  # Update and sample phi_00 variable - probability of having to delete an edge to get to B0
+  Psi[1,1]=rbeta(1,del_B0+1,1 + R^2*n - del_B0)
+  
+  #Update and sample phi_01 variable - probability of having to add an edge to get to B0
+  Psi[1,2]=rbeta(1,add_B0+1,1 + R^2*n - add_B0)
+  
+  #Update and sample phi_10 variable - probability of having to delete an edge to get to B1 
+  Psi[2,1]=rbeta(1,del_B1+1,1 + R^2*n - del_B1)
+  
+    #Update and sample phi_11 variable - probability of having to add an edge to get to B1
+  Psi[2,2]=rbeta(1,add_B1+1,1 + R^2*n - add_B1)
+  
+  #save the Psi parameters
+  Psi_save[t,] = c(Psi[1,1], Psi[1,2], Psi[2,1], Psi[2,2])
+}
+
+names <- c("phi_00", "phi_01", "phi_10",  "phi_11")
+colnames(Psi_save)<- names
+return(data.frame(Psi_save))
+}
+```
+
+
+Uniform Priors on the Psi parameters - Beta(1,1)
+
+Create the Data Set
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create networks varying from including a lot of 0's to a lot of 1's
+for (i in 1:n){
+  data_set[[i]]=matrix(sample(c(1,0),prob = c(i/(n+1),1-i/(n+1)),R^2,replace = TRUE), nrow = R, ncol = 10)
+}
+
+#Choose the two extreme networks
+B0= data_set[[1]]
+B1= data_set[[n]]
+
+#Get rid of the extreme networks from the data set
+data <- data_set[-c(1, n)] 
+n= n-2
+pis = pis[-c(1, n)]
+
+samp <- sampler(1000, pis, B0, B1, data)
+
+colMeans(samp)
+
+#COMPARISON
+#Unsorted pis - no effect - we can see that phi_00 and phi_11 go way up!
+
+pis=sample(size = length(pis),x = pis)
+
+samp_no_effect <- sampler(1000,pis, B0, B1, data)
+
+colMeans(samp_no_effect)
+```
+
+
+Let's create a data set differently and see how the alogirthm behaves:
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create two extreme networks
+B0 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+B1 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+
+#Create networks as linear combinations (sort of) of these two networks
+combos <- 1:n/(n+1)
+
+for (i in 1:n){
+  prob <- B0*(1-combos[i]) + B1*(combos[i])
+  new_data = matrix(NA, nrow = R, ncol = R)
+  for (k in 1:R){
+    for (j in 1:R){
+      new_data[k,j] = sample(x = c(1,0),prob = c(prob[k,j], 1-prob[k,j]), size = 1)
+    }
+  }
+  data_set[[i]]= new_data
+}
+
+
+
+
+
+data = data_set
+
+
+
+samp <- sampler(1000, pis, B0, B1, data)
+
+colMeans(samp)
+
+#COMPARISON
+#Unsorted pis shouldn't have an effect, and we see that the phis are consistently greater - the clusters are more disperse!
+
+samp_no_effect <- sampler(1000,unsort_pis, B0, B1, data)
+
+colMeans(samp_no_effect)
+
+
+```
+
+
+
+
+Random Brain Networks! No effect!
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create two extreme networks
+B0 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+B1 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+
+#Create networks as linear combinations (sort of) of these two networks
+
+combos <- 1:n/(n+1)
+
+for (i in 1:n){
+  new_data =matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+  data_set[[i]]= new_data
+}
+
+
+
+
+
+data = data_set
+
+
+
+samp <- sampler(1000, pis, B0, B1, data)
+
+colMeans(samp)
+
+
+samp_no_effect <- sampler(1000,rep(1/2,n), B0, B1, data)
+
+colMeans(samp_no_effect)
+
+
+```
+
+
