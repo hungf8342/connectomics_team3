@@ -8,13 +8,17 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(dplyr)
+library(readxl)
 ```
 
 ## Reading in Data
 
 We read in the MWM data and connectome matrices:
 ```{r cars}
-mwm<-read.csv("data/mwm.csv")
+mwm<-read.csv("data/MWM.csv")
+mwmlong<-read.csv("data/MWMlong.csv")
+chasssy<-read_excel("data/CHASSSYMM3AtlasLegends.xlsx")
 ```
 
 
@@ -96,6 +100,11 @@ binarize_matrix <- function(matr, threshold) {
 }
 
 ```
+Normalize
+```{r}
+normalize <- function(x){ 
+  return((x-min(x))/(max(x)-min(x)))}
+```
 
 Difference in Networks (binarized matrices)
 ```{r}
@@ -129,6 +138,39 @@ network_diffs <- function(matr_1,matr_2,threshold) {
 }
 ```
 
+Remove Subdivision 8 from the dataset
+```{r}
+indices=(chasssy$Subdivisions_7!="8_CSF")
+indices=indices[-length(indices)]
+for (i in 1:length(connectome_matlist)) {
+  connectome_matlist[[i]] <- connectome_matlist[[i]][indices,indices]
+}
+```
+
+Indexing Matrices by Runno
+```{r}
+
+# create list of identifiers corresponding to list of connectomes
+regexp <- "N[[:digit:]]{5}"
+matrix_labels <- lapply(filePaths,function(x) str_extract(x,regexp)) %>% unlist()
+
+# takes vector of runnos (string format) and finds corresponding matrices
+# returns vector of matrices if they exist, otherwise returns empty matrix
+
+find_connects <- function(runnos) {
+  
+  idxs <- which(matrix_labels %in% runnos)
+  
+  if (length(idxs) == 0) {
+    print("No matches")
+    return(matrix())
+  }
+  
+  return(connectome_matlist[idxs])
+}
+
+```
+
 
 Sampler Function
 
@@ -138,7 +180,7 @@ Uniform Priors on the Psi parameters - Beta(1,1)
 
 sampler <- function(iter, pis, B0, B1, data){
 #Iteration and Initialization of Value
-iter=1000
+R=dim(B0)[1]
 n= length(data)
 Cs=rep(0,n)
 Psi=matrix(0.5,2,2)
@@ -338,4 +380,35 @@ colMeans(samp_no_effect)
 
 ```
 
+Choose response variables
+```{r}
+choose_res=function(mwmlong,matrix_labels,string){
+  #Choose the average speed of  every mouse
+  #String is the desired variable to choose
+  result=rep(0,length(matrix_labels))
+  i=1
+  for (label in matrix_labels) {
+    result[i]=mwmlong %>% 
+    filter(grepl(label,runno,fixed = TRUE)) %>% 
+    select(string) %>% 
+    unlist() %>% 
+    mean(na.rm=TRUE)
+    i=i+1
+  }
+  return(result)
+}
+#Choose avg.sw.speed as a response and normalize
+avg.sw.speed=choose_res(mwmlong = mwmlong, matrix_labels = matrix_labels, "Average.SW.Speed") %>% 
+           normalize()
+
+    
+
+```
+Test on the real data
+```{r}
+B0=connectome_matlist[[which.min(avg.sw.speed)]]
+B1=connectome_matlist[[which.max(avg.sw.speed)]]
+pis=avg.sw.speed
+sampler(iter=3,pis=avg.sw.speed,B0,B1,data=connectome_matlist)
+```
 
