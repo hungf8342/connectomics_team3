@@ -2,7 +2,7 @@
 title: "EDA"
 author: "Justin Weltz"
 date: "3/30/2020"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -132,6 +132,8 @@ network_diffs <- function(matr_1,matr_2,threshold) {
 
 Sampler Function
 
+Uniform Priors on the Psi parameters - Beta(1,1)
+
 ```{r}
 
 sampler <- function(iter, pis, B0, B1, data){
@@ -191,9 +193,6 @@ colnames(Psi_save)<- names
 return(data.frame(Psi_save))
 }
 ```
-
-
-Uniform Priors on the Psi parameters - Beta(1,1)
 
 Create the Data Set
 
