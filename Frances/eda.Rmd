@@ -70,7 +70,7 @@ network_diffs <- function(matr_1,matr_2,threshold) {
 regexp <- "N[[:digit:]]{5}"
 matrix_labels <- lapply(filePaths,function(x) str_extract(x,regexp)) %>% unlist()
 
-# takes vector of runnos and finds corresponding matrices
+# takes vector of runnos (string format) and finds corresponding matrices
 # returns vector of matrices if they exist, otherwise returns empty matrix
 
 find_connects <- function(runnos) {
