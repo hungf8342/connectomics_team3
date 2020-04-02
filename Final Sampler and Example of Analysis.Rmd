@@ -1,0 +1,383 @@
+---
+title: "Final Sampler"
+author: "Justin Weltz"
+date: "4/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(readxl)
+```
+
+Final Distance Function
+```{r}
+distance <- function(data){
+add_B0_diff=rep(0,length(data))
+del_B0_diff=rep(0,length(data))
+add_B1_diff=rep(0,length(data))
+del_B1_diff=rep(0,length(data))
+
+for(i in 1:length(data)){
+      #deletions from B_i to B0
+      del_B0_diff[i]=network_diffs(data[[i]],B0,0.5)[1]
+      #additions form B_i to B0
+      add_B0_diff[i]=network_diffs(data[[i]],B0,0.5)[2]
+      #deletions from B_i to B1
+      del_B1_diff[i]=network_diffs(data[[i]],B1,0.5)[1]
+      #additions from B_i to B1
+      add_B1_diff[i]=network_diffs(data[[i]],B1,0.5)[2]
+}
+differences <- cbind(add_B0_diff, del_B0_diff, add_B1_diff, del_B1_diff)
+return(differences)
+}
+
+```
+
+
+
+Final Sampler Function
+```{r}
+
+sampler <- function(iter, pis, B0, B1, data, differences, null){
+  
+
+#Extract Differences
+  
+add_B0_diff <- differences[,1]
+del_B0_diff <- differences[,2]
+add_B1_diff <- differences[,3]
+del_B1_diff <- differences[,4]
+
+#Iteration and Initialization of Value
+R=dim(B0)[1]
+n= length(data)
+Cs=rep(0,n)
+Psi=matrix(0.5,2,2)
+Psi_save = matrix(0,iter,4)
+
+if (null){
+  pis = sample(size = n, x =pis,replace = F )
+}
+
+
+for(t in 1:iter){
+  # draw C
+  for (i in 1:n){
+     #Assign membership to the cluster around B1 or B0 based on pis
+    Cs[i] = sample(x =  c(1,0), size = 1, prob= c(pis[i], 1-pis[i]))
+  }
+  # Update Psi
+  add_B0=0
+  del_B0=0
+  add_B1=0
+  del_B1=0
+  
+  #For each network, if the network has been grouped around B0, then compute the additions and subtractions needed to get from B_i to B0
+  #if the network has been grouped around B1, then compute the additions and subtractions needed to get from B_i to B1
+  for (i in 1:n){
+    if (Cs[i]==0){
+      #deletions from B_i to B0
+      del_B0=del_B0+del_B0_diff[i]
+      #additions form B_i to B0
+      add_B0=add_B0+add_B0_diff[i]
+    }
+    else{
+      #deletions from B_i to B1
+      del_B1=del_B1+del_B1_diff[i]
+      #additions from B_i to B1
+      add_B1=add_B1+add_B1_diff[i]
+    }
+  }
+  # Update and sample phi_00 variable - probability of having to delete an edge to get to B0
+  Psi[1,1]=rbeta(1,del_B0+1,1 + R^2*n - del_B0)
+  
+  #Update and sample phi_01 variable - probability of having to add an edge to get to B0
+  Psi[1,2]=rbeta(1,add_B0+1,1 + R^2*n - add_B0)
+  
+  #Update and sample phi_10 variable - probability of having to delete an edge to get to B1 
+  Psi[2,1]=rbeta(1,del_B1+1,1 + R^2*n - del_B1)
+  
+    #Update and sample phi_11 variable - probability of having to add an edge to get to B1
+  Psi[2,2]=rbeta(1,add_B1+1,1 + R^2*n - add_B1)
+  
+  #save the Psi parameters
+  Psi_save[t,] = c(Psi[1,1], Psi[1,2], Psi[2,1], Psi[2,2])
+}
+
+names <- c("phi_00", "phi_01", "phi_10",  "phi_11")
+colnames(Psi_save)<- names
+return(data.frame(Psi_save))
+}
+```
+
+
+
+Final Null Distribution Function
+
+```{r}
+null_distribution <- function(samples, iter, pis, B0, B1, data, differences){
+  distr <- matrix(NA, samples, 4)
+  for (i in 1:samples){
+    distr[i,] <- colMeans(sampler(iter, pis, B0, B1, data, differences, null = T))
+  }
+  names <- c("phi_00", "phi_01", "phi_10",  "phi_11")
+  colnames(distr)<- names
+  return(distr)
+}
+
+```
+
+Example of Analysis on Simulated Data Set
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create two extreme networks
+B0 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+B1 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+
+#Create networks as linear combinations (sort of) of these two networks
+combos <- 1:n/(n+1)
+
+for (i in 1:n){
+  prob <- B0*(1-combos[i]) + B1*(combos[i])
+  new_data = matrix(NA, nrow = R, ncol = R)
+  for (k in 1:R){
+    for (j in 1:R){
+      new_data[k,j] = sample(x = c(1,0),prob = c(prob[k,j], 1-prob[k,j]), size = 1)
+    }
+  }
+  data_set[[i]]= new_data
+}
+
+
+
+
+
+data = data_set
+
+
+distances <- distance(data)
+samp <- sampler(1000, pis, B0, B1, data, distances, null = F)
+observed <- colMeans(samp)
+null_distr <- null_distribution(1000,1000, pis, B0, B1, data, distances)
+
+#null vs. observed
+ggplot(data = data.frame(null_distr), aes(x = phi_00)) + geom_histogram() + geom_vline(xintercept =  observed[1], color = "red")
+
+ggplot(data = data.frame(null_distr), aes(x = phi_01)) + geom_histogram() + geom_vline(xintercept =  observed[2], color = "red")
+
+ggplot(data = data.frame(null_distr), aes(x = phi_10)) + geom_histogram() + geom_vline(xintercept =  observed[3], color = "red")
+
+ggplot(data = data.frame(null_distr), aes(x = phi_11)) + geom_histogram() + geom_vline(xintercept =  observed[4], color = "red")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+TESTS OF NEW FUNCTION VS. ORIGINAL
+```{r}
+
+orig_sampler <- function(iter, pis, B0, B1, data){
+#Iteration and Initialization of Value
+R=dim(B0)[1]
+n= length(data)
+Cs=rep(0,n)
+Psi=matrix(0.5,2,2)
+Psi_save = matrix(0,iter,4)
+
+for(t in 1:iter){
+  # draw C
+  for (i in 1:n){
+     #Assign membership to the cluster around B1 or B0 based on pis
+    Cs[i] = sample(x =  c(1,0), size = 1, prob= c(pis[i], 1-pis[i]))
+  }
+  # Update Psi
+  add_B0=0
+  del_B0=0
+  add_B1=0
+  del_B1=0
+  
+  #For each network, if the network has been grouped around B0, then compute the additions and subtractions needed to get from B_i to B0
+  #if the network has been grouped around B1, then compute the additions and subtractions needed to get from B_i to B1
+  for (i in 1:n){
+    if (Cs[i]==0){
+      #deletions from B_i to B0
+      del_B0=del_B0+network_diffs(data[[i]],B0,0.5)[1]
+      #additions form B_i to B0
+      add_B0=add_B0+network_diffs(data[[i]],B0,0.5)[2]
+    }
+    else{
+      #deletions from B_i to B1
+      del_B1=del_B1+network_diffs(data[[i]],B1,0.5)[1]
+      #additions from B_i to B1
+      add_B1=add_B1+network_diffs(data[[i]],B1,0.5)[2]
+    }
+  }
+  # Update and sample phi_00 variable - probability of having to delete an edge to get to B0
+  Psi[1,1]=rbeta(1,del_B0+1,1 + R^2*n - del_B0)
+  
+  #Update and sample phi_01 variable - probability of having to add an edge to get to B0
+  Psi[1,2]=rbeta(1,add_B0+1,1 + R^2*n - add_B0)
+  
+  #Update and sample phi_10 variable - probability of having to delete an edge to get to B1 
+  Psi[2,1]=rbeta(1,del_B1+1,1 + R^2*n - del_B1)
+  
+    #Update and sample phi_11 variable - probability of having to add an edge to get to B1
+  Psi[2,2]=rbeta(1,add_B1+1,1 + R^2*n - add_B1)
+  
+  #save the Psi parameters
+  Psi_save[t,] = c(Psi[1,1], Psi[1,2], Psi[2,1], Psi[2,2])
+}
+
+names <- c("phi_00", "phi_01", "phi_10",  "phi_11")
+colnames(Psi_save)<- names
+return(data.frame(Psi_save))
+}
+```
+
+Tests:
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create networks varying from including a lot of 0's to a lot of 1's
+for (i in 1:n){
+  data_set[[i]]=matrix(sample(c(1,0),prob = c(i/(n+1),1-i/(n+1)),R^2,replace = TRUE), nrow = R, ncol = 10)
+}
+
+#Choose the two extreme networks
+B0= data_set[[1]]
+B1= data_set[[n]]
+
+#Get rid of the extreme networks from the data set
+data <- data_set[-c(1, n)] 
+n= n-2
+pis = pis[-c(1, n)]
+
+distances <- distance(data)
+samp <- sampler(1000, pis, B0, B1, data, distances, null = F)
+
+samp2 <- orig_sampler(1000, pis, B0, B1, data)
+
+colMeans(samp2)
+colMeans(samp)
+
+#COMPARISON
+#Unsorted pis - no effect - we can see that phi_00 and phi_11 go way up!
+
+
+samp_no_effect <- sampler(1000,pis, B0, B1, data, distances, null= T)
+
+pis = sample(size = length(pis), x =pis,replace = F )
+samp_no_effect2 <- orig_sampler(1000,pis, B0, B1, data)
+
+colMeans(samp_no_effect)
+colMeans(samp_no_effect2)
+```
+
+Let's create a data set differently and see how the alogirthm behaves:
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create two extreme networks
+B0 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+B1 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+
+#Create networks as linear combinations (sort of) of these two networks
+combos <- 1:n/(n+1)
+
+for (i in 1:n){
+  prob <- B0*(1-combos[i]) + B1*(combos[i])
+  new_data = matrix(NA, nrow = R, ncol = R)
+  for (k in 1:R){
+    for (j in 1:R){
+      new_data[k,j] = sample(x = c(1,0),prob = c(prob[k,j], 1-prob[k,j]), size = 1)
+    }
+  }
+  data_set[[i]]= new_data
+}
+
+
+
+
+
+data = data_set
+
+
+distances <- distance(data)
+samp <- sampler(1000, pis, B0, B1, data, distances, null = F)
+
+samp2 <- orig_sampler(1000, pis, B0, B1, data)
+
+colMeans(samp2)
+colMeans(samp)
+
+#COMPARISON
+#Unsorted pis - no effect - we can see that phi_00 and phi_11 go way up!
+
+
+samp_no_effect <- sampler(1000,pis, B0, B1, data, distances, null= T)
+
+pis = sample(size = length(pis), x =pis,replace = F )
+samp_no_effect2 <- orig_sampler(1000,pis, B0, B1, data)
+
+colMeans(samp_no_effect)
+colMeans(samp_no_effect2)
+
+
+
+```
