@@ -405,11 +405,23 @@ avg.sw.speed=choose_res(mwmlong = mwmlong, matrix_labels = matrix_labels, "Avera
     
 
 ```
-Test on the real data
+
+Test on the real data--very slow
 ```{r}
 B0=connectome_matlist[[which.min(avg.sw.speed)]]
 B1=connectome_matlist[[which.max(avg.sw.speed)]]
 pis=avg.sw.speed
 sampler(iter=3,pis=avg.sw.speed,B0,B1,data=connectome_matlist)
+```
+
+Try a 30 by 30 submatrix---much faster
+```{r}
+for (i in 1:length(connectome_matlist)) {
+  data[[i]] <- connectome_matlist[[i]][1:10,1:10]
+}
+B0=connectome_matlist[[which.min(avg.sw.speed)]][1:10,1:10]
+B1=connectome_matlist[[which.max(avg.sw.speed)]][1:10, 1:10]
+pis=avg.sw.speed
+sampler(iter=3000,pis=avg.sw.speed,B0,B1,data=data)
 ```
 
