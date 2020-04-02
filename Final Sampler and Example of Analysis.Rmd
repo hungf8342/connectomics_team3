@@ -189,6 +189,12 @@ ggplot(data = data.frame(null_distr), aes(x = phi_10)) + geom_histogram() + geom
 ggplot(data = data.frame(null_distr), aes(x = phi_11)) + geom_histogram() + geom_vline(xintercept =  observed[4], color = "red")
 ```
 
+We can see that the observed data parameters are smaller than the null distribution range, indicating that there is an effect!
+
+
+
+
+
 
 
 
