@@ -9,13 +9,27 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(stringr)
+library(circlize)
 ```
+
+
+# Summary of EDA
+I took the element-wise variances of both the raw and binarized connectomes. 
+
+As expected, the binarized and raw connectome matrices have greatest-variance connections which differ in terms of brain region and hemisphere. Variance in the raw matrices measures the variance in strength of white matter connections, while variance in binarized matrices measures the variance in existence of white matter connections. Connections with greatest variance, using the raw connectome matrices, come from fewer brain regions than the connections wrt binarized matrices. Some common (between raw and binarized) destination areas of greatest-variance connections are the parasubiculum and dorsal claustrum. 
+
+With respect to hemisphere interaction, the raw connectome matrices' top-variance connections are both between and within the right and left hemispheres. For the binarized connectomes, the top-variance connections are exclusively from the left hemisphere to the right or within the left hemisphere.
+
+In both cases (but especially the raw connectome case), greatest-variance connections appear to be symmetric: this is evidence that connections in the brain are typically equally present in one direction as the other.
+
+Next steps include looking at distributions of specific high-variance connections. 
 
 ## Reading in Data
 
 We read in the MWM data and connectome matrices:
 ```{r cars}
 mwmlong<-read.csv("../data/MWMlong.csv")
+chasssy<-read.csv("../data/CHASSSYMM3AtlasLegends.csv")
 ```
 
 
@@ -63,6 +77,16 @@ network_diffs <- function(matr_1,matr_2,threshold) {
 }
 ```
 
+Remove Subdivision 8 from the dataset
+```{r}
+indices=(chasssy$Subdivisions_7!="8_CSF")
+indices=indices[-length(indices)]
+for (i in 1:length(connectome_matlist)) {
+  connectome_matlist[[i]] <- connectome_matlist[[i]][indices,indices]
+}
+```
+
+
 ### Indexing Matrices by Runno
 ```{r}
 
@@ -87,57 +111,244 @@ find_connects <- function(runnos) {
 
 ```
 
-Gibbs Sampler
+## EDA
+
+For Raw Matrices
 ```{r}
-n=3
-R=10
-pis=runif(n)
-data=array(sample(c(0,1),R^2*n,replace = TRUE),dim=c(R,R,n))
-iter=100
-##Initialization
-Cs=rep(0,n)
-B0=matrix(0,10,10)
-B1=matrix(1,10,10)
-Psi=matrix(.999,2,2)
-Cs_save=matrix(0,n,iter)
-for(t in 1:iter){
-  # Update C
-  for (i in 1:n) {
-    p1=Psi[2,]^network_diffs(data[,,i],B1,0.5)
-    p1=p1[1]*p1[2]*pis[i]
-    p0=Psi[1,]^network_diffs(data[,,i],B0,0.5)
-    p0=p0[1]*p0[2]*(1-pis[i])
-    Cs[i]=sample(c(0,1),1,prob=c(p0,p1))
-  }
-  # Update Psi
-  add_B0=0
-  del_B0=0
-  add_B1=0
-  del_B1=0
-  for (i in 1:n) {
-    if (Cs[i]==0){
-      del_B0=del_B0+network_diffs(data[,,i],B0,0.5)[1]
-      add_B0=add_B0+network_diffs(data[,,i],B0,0.5)[2]
-    }
-    else{
-      del_B1=del_B1+network_diffs(data[,,i],B1,0.5)[1]
-      add_B1=add_B1+network_diffs(data[,,i],B1,0.5)[2]
-    }
-  }
-  Psi[1,1]=rbeta(1,del_B0+1,1)
-  Psi[1,2]=rbeta(1,add_B0+1,1)
-  Psi[2,1]=rbeta(1,del_B1+1,1)
-  Psi[2,2]=rbeta(1,add_B1+1,1)
-  # Update B0
-  for (j in 1:R) {
-    for (l in 1:R) {
-      p=Psi[1,]^c(sum(data[j,l,Cs==0]==1),sum(data[j,l,Cs==0]==0))
-      B0[j,l]=sample(c(0,1),1,prob = p)
-      p=Psi[2,]^c(sum(data[j,l,Cs==1]==1),sum(data[j,l,Cs==1]==0))
-      B1[j,l]=sample(c(0,1),1,prob = p)
-    }
-  }
-  Cs_save[,t]=Cs
-}
+mean_connectome <- Reduce("+", connectome_matlist) / length(connectome_matlist)
+
+#elt-wise: square of obs-mean difference
+sds <-lapply(connectome_matlist, function(x) x-mean_connectome) %>% 
+  lapply(function(x) x^2)
+
+#sum squares of differences and divide by number of subjects
+sd_connectome <-Reduce("+",sds)/(length(sds)-1)
+
+
+heatmap(mean_connectome,main="Mean Connections")
+heatmap(sd_connectome,main="Connection Variance")
+
 ```
+
+```{r}
+row_label <- rep(1:nrow(sd_connectome),each=ncol(sd_connectome))
+col_label <- rep(1:ncol(sd_connectome),nrow(sd_connectome))
+elt_sd <- sd_connectome %>% as.vector()
+
+#join brain regions to sorted elt-wise standard_dev dataframe
+sd_sort_df <- cbind(elt_sd,row_label,col_label) %>%
+  as.data.frame() %>%
+  arrange(desc(elt_sd)) %>%
+  inner_join(.,chasssy,by=c("row_label"="index")) %>%
+  inner_join(.,chasssy,by=c("col_label"="index"))
+
+
+```
+
+
+### Visualization of White Matter- Origins
+```{r}
+sd_out_bar <- ggplot(sd_sort_df %>% slice(1:90),aes(x=Structure.x,fill=elt_sd)) + 
+  geom_bar(stat="count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter From Brain Region Is in Top-90 Variable Connections")
+
+sd_out_violin <- ggplot(sd_sort_df %>% slice(1:90),aes(x=Structure.x,y=elt_sd)) + 
+  geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter From Brain Region Is in Top-90 Variable Connections")
+
+
+ggsave("plots/sd_outgoing_raw.png",plot=gridExtra::grid.arrange(sd_out_bar, sd_out_violin, ncol=1),
+       width=5,height=9)
+```
+
+
+### Visualization of White Matter- Destinations
+```{r}
+sd_in_bar <- ggplot(sd_sort_df %>% slice(1:90),aes(x=Structure.y,fill=elt_sd)) + 
+  geom_bar(stat="count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter To Brain Region Is in Top-90 Variable Connections")
+
+sd_in_violin <- ggplot(sd_sort_df %>% slice(1:90),aes(x=Structure.y,y=elt_sd)) + 
+  geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter To Brain Region Is in Top-90 Variable Connections")
+
+
+ggsave("plots/sd_incoming_raw.png",plot=gridExtra::grid.arrange(sd_in_bar, sd_in_violin, ncol=1),
+       width=5,height=9)
+```
+
+### Circle Diagrams: Brain Regions
+```{r}
+top_sd_sort <- sd_sort_df[1:10,]
+
+png("plots/brain_region_circle_raw.png",width=700,height=700)
+chordDiagram(top_sd_sort %>% select(Structure.x,Structure.y), annotationTrack = "grid", preAllocateTracks = 1)
+circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  circos.text(quantile(xlim,0.25), ylim[1] + 1, sector.name,niceFacing = TRUE, adj = c(0, 0.5), cex=0.9)
+  circos.axis(h = "top", labels.cex = 0.5, major.tick.percentage = 0.2, sector.index = sector.name, track.index = 2)
+}, bg.border = NA)
+title("10 Connections w/ Most Variance (Raw): Brain Region Interaction")
+dev.off()
+```
+### Circle Diagrams: Right and Left Hemisphere
+```{r}
+png("plots/hemisphere_circle_raw.png",width=700,height=700)
+chordDiagram(top_sd_sort %>% select(Hemisphere.x,Hemisphere.y))
+title("10 Connections w/ Most Variance (Raw): Hemisphere Interaction")
+dev.off()
+```
+
+
+## For Binarized Matrices
+```{r}
+bin_connectome_matlist <- lapply(connectome_matlist, function(x) binarize_matrix(x,1))
+bin_mean_connectome <- Reduce("+", bin_connectome_matlist) / length(bin_connectome_matlist)
+
+#elt-wise: square of obs-mean difference
+bin_sds <-lapply(bin_connectome_matlist, function(x) x-bin_mean_connectome) %>% 
+  lapply(function(x) x^2)
+
+#sum squares of differences and divide by number of subjects
+bin_sd_connectome <-Reduce("+",bin_sds)/(length(bin_sds)-1)
+
+mean_heatmap_bin <- (heatmap(bin_mean_connectome, main="Mean Binary Connections"))
+var_heatmap_bin <- heatmap(bin_sd_connectome, main="Variance of Binary Connections")
+
+```
+
+```{r}
+row_label <- rep(1:nrow(bin_sd_connectome),each=ncol(bin_sd_connectome))
+col_label <- rep(1:ncol(bin_sd_connectome),nrow(bin_sd_connectome))
+elt_sd <- bin_sd_connectome %>% as.vector()
+
+#join brain regions to sorted elt-wise standard_dev dataframe
+bin_sd_sort_df <- cbind(elt_sd,row_label,col_label) %>%
+  as.data.frame() %>%
+  arrange(desc(elt_sd)) %>%
+  inner_join(.,chasssy,by=c("row_label"="index")) %>%
+  inner_join(.,chasssy,by=c("col_label"="index"))
+
+
+```
+
+
+```{r}
+sd_out_bar_bin <- ggplot(bin_sd_sort_df %>% slice(1:10),aes(x=Structure.x,fill=elt_sd)) + 
+  geom_bar(stat="count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter From Brain Region Is in Top-10 Variable Connections")
+
+sd_out_violin_bin <- ggplot(bin_sd_sort_df %>% slice(1:10),aes(x=Structure.x,y=elt_sd)) + 
+  geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter From Brain Region Is in Top-10 Variable Connections")
+
+
+ggsave("plots/sd_outgoing_bin.png",plot=gridExtra::grid.arrange(sd_out_bar_bin, sd_out_violin_bin, ncol=1),
+       width=5,height=9)
+```
+
+```{r}
+sd_in_bar_bin <- ggplot(bin_sd_sort_df %>% slice(1:10),aes(x=Structure.y,fill=elt_sd)) + 
+  geom_bar(stat="count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter To Brain Region Is in Top-10 Variable Connections")
+
+sd_in_violin_bin <- ggplot(bin_sd_sort_df %>% slice(1:10),aes(x=Structure.y,y=elt_sd)) + 
+  geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("# Times White Matter To Brain Region Is in Top-10 Variable Connections")
+
+
+ggsave("plots/sd_incoming_bin.png",plot=gridExtra::grid.arrange(sd_in_bar_bin, sd_in_violin_bin, ncol=1),
+       width=5,height=10)
+```
+
+### Circle Diagram: Brain Region (Binarized)
+```{r}
+bin_top_sd_sort <- bin_sd_sort_df[1:10,]
+png("plots/brain_region_circle_bin.png",width=700,height=700)
+chordDiagram(bin_top_sd_sort %>% select(Structure.x,Structure.y), annotationTrack = "grid", preAllocateTracks = 1)
+circos.trackPlotRegion(track.index = 1, panel.fun = function(x, y) {
+  xlim = get.cell.meta.data("xlim")
+  ylim = get.cell.meta.data("ylim")
+  sector.name = get.cell.meta.data("sector.index")
+  circos.text(quantile(xlim,0.25), ylim[1] + 1, sector.name,niceFacing = TRUE, adj = c(0, 0.5), cex=0.9)
+  circos.axis(h = "top", labels.cex = 0.5, major.tick.percentage = 0.2, sector.index = sector.name, track.index = 2)
+}, bg.border = NA)
+
+title("10 Connections w/ Most Variance (Binarized): Brain Region Interaction")
+dev.off()
+```
+## Circle Diagram: Hemispheres (Binarized)
+```{r}
+png("plots/hemisphere_circle_bin.png",width=700,height=700)
+chordDiagram(bin_top_sd_sort %>% select(Hemisphere.x,Hemisphere.y))
+title(main="10 Connections w/ Most Variance (Binarized): Hemisphere Interaction")
+dev.off()
+```
+
+
+
+
+<!-- Gibbs Sampler -->
+<!-- ```{r} -->
+<!-- n=3 -->
+<!-- R=10 -->
+<!-- pis=runif(n) -->
+<!-- data=array(sample(c(0,1),R^2*n,replace = TRUE),dim=c(R,R,n)) -->
+<!-- iter=100 -->
+<!-- ##Initialization -->
+<!-- Cs=rep(0,n) -->
+<!-- B0=matrix(0,10,10) -->
+<!-- B1=matrix(1,10,10) -->
+<!-- Psi=matrix(.999,2,2) -->
+<!-- Cs_save=matrix(0,n,iter) -->
+<!-- for(t in 1:iter){ -->
+<!--   # Update C -->
+<!--   for (i in 1:n) { -->
+<!--     p1=Psi[2,]^network_diffs(data[,,i],B1,0.5) -->
+<!--     p1=p1[1]*p1[2]*pis[i] -->
+<!--     p0=Psi[1,]^network_diffs(data[,,i],B0,0.5) -->
+<!--     p0=p0[1]*p0[2]*(1-pis[i]) -->
+<!--     Cs[i]=sample(c(0,1),1,prob=c(p0,p1)) -->
+<!--   } -->
+<!--   # Update Psi -->
+<!--   add_B0=0 -->
+<!--   del_B0=0 -->
+<!--   add_B1=0 -->
+<!--   del_B1=0 -->
+<!--   for (i in 1:n) { -->
+<!--     if (Cs[i]==0){ -->
+<!--       del_B0=del_B0+network_diffs(data[,,i],B0,0.5)[1] -->
+<!--       add_B0=add_B0+network_diffs(data[,,i],B0,0.5)[2] -->
+<!--     } -->
+<!--     else{ -->
+<!--       del_B1=del_B1+network_diffs(data[,,i],B1,0.5)[1] -->
+<!--       add_B1=add_B1+network_diffs(data[,,i],B1,0.5)[2] -->
+<!--     } -->
+<!--   } -->
+<!--   Psi[1,1]=rbeta(1,del_B0+1,1) -->
+<!--   Psi[1,2]=rbeta(1,add_B0+1,1) -->
+<!--   Psi[2,1]=rbeta(1,del_B1+1,1) -->
+<!--   Psi[2,2]=rbeta(1,add_B1+1,1) -->
+<!--   # Update B0 -->
+<!--   for (j in 1:R) { -->
+<!--     for (l in 1:R) { -->
+<!--       p=Psi[1,]^c(sum(data[j,l,Cs==0]==1),sum(data[j,l,Cs==0]==0)) -->
+<!--       B0[j,l]=sample(c(0,1),1,prob = p) -->
+<!--       p=Psi[2,]^c(sum(data[j,l,Cs==1]==1),sum(data[j,l,Cs==1]==0)) -->
+<!--       B1[j,l]=sample(c(0,1),1,prob = p) -->
+<!--     } -->
+<!--   } -->
+<!--   Cs_save[,t]=Cs -->
+<!-- } -->
+<!-- ``` -->
 
