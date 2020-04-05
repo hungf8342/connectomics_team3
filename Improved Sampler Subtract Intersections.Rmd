@@ -1,0 +1,241 @@
+---
+title: "Improved Sampler 2"
+author: "Justin Weltz"
+date: "4/5/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Final Distance Function
+```{r}
+distance <- function(data){
+add_B0_diff=rep(0,length(data))
+del_B0_diff=rep(0,length(data))
+add_B1_diff=rep(0,length(data))
+del_B1_diff=rep(0,length(data))
+
+for(i in 1:length(data)){
+      #deletions from B_i to B0
+      del_B0_diff[i]=network_diffs(data[[i]],B0,0.5)[1]
+      #additions form B_i to B0
+      add_B0_diff[i]=network_diffs(data[[i]],B0,0.5)[2]
+      #deletions from B_i to B1
+      del_B1_diff[i]=network_diffs(data[[i]],B1,0.5)[1]
+      #additions from B_i to B1
+      add_B1_diff[i]=network_diffs(data[[i]],B1,0.5)[2]
+}
+differences <- cbind(add_B0_diff, del_B0_diff, add_B1_diff, del_B1_diff)
+return(differences)
+}
+
+```
+
+
+Final Null Distribution Function
+
+```{r}
+null_distribution <- function(samples, iter, response, B0, B1, data, differences){
+  distr <- matrix(NA, samples, 4)
+  for (i in 1:samples){
+    distr[i,] <- colMeans(sampler(iter, response, B0, B1, data, differences, null = T))
+  }
+  names <- c("phi_00", "phi_01", "phi_10",  "phi_11")
+  colnames(distr)<- names
+  return(distr)
+}
+
+```
+
+Intersection Function 
+```{r}
+
+intersect <- function(data){
+tracker = matrix(T,R,R)
+for (i in 1:(n-1)){
+  inter = data[[i]] == data[[i+1]]
+  tracker = tracker & inter
+}
+
+return(sum(as.vector(tracker)))
+
+}
+
+```
+
+***IMPORTANT PART***
+Probit Gibbs Sampler Function with Subtraction of Group Intersection
+```{r}
+require(truncnorm)
+#Adding Intersection - If the edge is common across all networks tham there's no reason to account for it in variability.
+sampler <- function(iter, response, B0, B1, data, differences, intersection, null){
+  
+
+#Extract Differences
+  
+add_B0_diff <- differences[,1]
+del_B0_diff <- differences[,2]
+add_B1_diff <- differences[,3]
+del_B1_diff <- differences[,4]
+
+#Iteration and Initialization of Value
+R=dim(B0)[1]
+n= length(data)
+Cs=sample(x=c(0,1), size = n, replace = T)
+Psi=matrix(0.5,2,2)
+Psi_save = matrix(0,iter,4)
+
+#New Parameters to initialize
+latent_Z = rep(0,n)
+beta= 0
+
+
+#Save new parameters
+beta_save = c(NA,iter)
+Cs_save = matrix(NA, iter, n)
+latent_Z_save = matrix(NA, iter, n)
+prob_C0_save = matrix(NA, iter, n)
+
+if (null){
+  response = sample(size = n, x =response,replace = F )
+}
+
+
+for(t in 1:iter){
+  
+  #draw latent zs with gibbs step
+  for (i in 1:n){
+    if(Cs[i] == 1){
+    latent_Z[i] = rtruncnorm(1,a= 0, b = Inf,response[i]*beta,1)
+    }
+    if(Cs[i] == 0){
+    latent_Z[i] = rtruncnorm(1,a = -Inf,b =  0,response[i]*beta,1)
+    }
+    
+  }
+  
+  #Save the latent Zs
+  latent_Z_save[t,] <- latent_Z
+
+  #update beta with gibbs step
+  
+  beta = rnorm(1,sum(response*latent_Z)/sum(response^2), sqrt(1/sum(response^2)))
+  beta_save[t] = beta
+  
+  # draw latent Cs with Gibbs Step
+  
+  #Calculate Probability C=0
+  prob_C0 =  (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff)/ (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff + Psi[2,1]^del_B1_diff*Psi[2,2]^add_B1_diff)
+  
+    #Save Prob_C0
+  prob_C0_save[t,] <- prob_C0
+  
+#Now draw using the probability
+  for (i in 1:n){
+    Cs[i] = sample(x =  c(0,1), size = 1, prob= c(prob_C0[i], 1-prob_C0[i]))
+  }
+  
+    #Save the classifications
+  Cs_save[t,] <- Cs 
+  
+  
+  # Update Psi
+  add_B0=0
+  del_B0=0
+  add_B1=0
+  del_B1=0
+  
+  #For each network, if the network has been grouped around B0, then compute the additions and subtractions needed to get from B_i to B0
+  #if the network has been grouped around B1, then compute the additions and subtractions needed to get from B_i to B1
+  for (i in 1:n){
+    if (Cs[i]==0){
+      #deletions from B_i to B0
+      del_B0=del_B0+del_B0_diff[i]
+      #additions form B_i to B0
+      add_B0=add_B0+add_B0_diff[i]
+    }
+    else{
+      #deletions from B_i to B1
+      del_B1=del_B1+del_B1_diff[i]
+      #additions from B_i to B1
+      add_B1=add_B1+add_B1_diff[i]
+    }
+  }
+  
+  #Calculate the number in the B_1 class and B_0 class:
+  num_B1 <- sum(Cs)
+  num_B0 <- n-sum(Cs)
+  
+  # Update and sample phi_00 variable - probability of having to delete an edge to get to B0
+  Psi[1,1]=rbeta(1,del_B0+1,1 + (R^2-intersection)*num_B0 - del_B0)
+  
+  #Update and sample phi_01 variable - probability of having to add an edge to get to B0
+  Psi[1,2]=rbeta(1,add_B0+1,1 + (R^2-intersection)*num_B0 - add_B0)
+  
+  #Update and sample phi_10 variable - probability of having to delete an edge to get to B1 
+  Psi[2,1]=rbeta(1,del_B1+1,1 + (R^2-intersection)*num_B1 - del_B1)
+  
+    #Update and sample phi_11 variable - probability of having to add an edge to get to B1
+  Psi[2,2]=rbeta(1,add_B1+1,1 + (R^2 - intersection)*num_B1 - add_B1)
+  
+  #save the Psi parameters
+  Psi_save[t,] = c(Psi[1,1], Psi[1,2], Psi[2,1], Psi[2,2])
+}
+full_parameters <- cbind(Psi_save, beta_save)
+names <- c("phi_00", "phi_01", "phi_10",  "phi_11", "beta")
+colnames(full_parameters)<- names
+parameter_list <- list()
+parameter_list[[1]] <- full_parameters
+parameter_list[[2]] <- latent_Z_save
+parameter_list[[3]] <- Cs_save
+parameter_list[[4]] <- prob_C0_save
+return(parameter_list)
+}
+```
+
+Example of Analysis on Simulated Data Set
+
+```{r}
+n=20
+R=10
+#Initialize the pis - stand in for standardized memory metric
+unsort_pis=runif(n)
+
+#sort the pis so that they correspond to the networks that vary from B0 to B1
+pis <- sort(unsort_pis)
+data_set <- list()
+
+#Create two extreme networks
+B0 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+B1 <- matrix(sample(c(1,0),R^2,replace = TRUE), nrow = R, ncol = R)
+
+
+#Create networks as linear combinations (sort of) of these two networks
+combos <- 1:n/(n+1)
+
+for (i in 1:n){
+  prob <- B0*(1-combos[i]) + B1*(combos[i])
+  new_data = matrix(NA, nrow = R, ncol = R)
+  for (k in 1:R){
+    for (j in 1:R){
+      new_data[k,j] = sample(x = c(1,0),prob = c(prob[k,j], 1-prob[k,j]), size = 1)
+    }
+  }
+  data_set[[i]]= new_data
+}
+
+
+data = data_set
+distances <- distance(data)
+intersection <- intersect(data)
+samp1 <- sampler(10000, pis, B0, B1, data, distances,intersection, null = T)
+hist(samp1[[1]][,5])
+samp2 <- sampler(10000, pis, B0, B1, data, distances, intersection, null = F)
+hist(samp2[[1]][,5])
+```
+
+
