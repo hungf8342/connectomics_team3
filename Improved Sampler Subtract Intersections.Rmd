@@ -230,8 +230,12 @@ for (i in 1:n){
 
 
 data = data_set
+
+#functions that need to be run in order to establish arguments for sampler
 distances <- distance(data)
 intersection <- intersect(data)
+
+#sampler
 samp1 <- sampler(10000, pis, B0, B1, data, distances,intersection, null = T)
 hist(samp1[[1]][,5])
 samp2 <- sampler(10000, pis, B0, B1, data, distances, intersection, null = F)
