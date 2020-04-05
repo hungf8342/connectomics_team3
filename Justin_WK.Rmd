@@ -377,7 +377,6 @@ samp_no_effect <- sampler(1000,rep(1/2,n), B0, B1, data)
 
 colMeans(samp_no_effect)
 
-
 ```
 
 Choose response variables
