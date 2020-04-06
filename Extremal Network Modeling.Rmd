@@ -35,12 +35,18 @@ Steps to fitting the basic model:
   b. Conditional on membership (data augmentation), compute the Beta-Binomial conjugate update for each parameter.
   c. Repeat
 
-Steps to fitting the slightly more complicated model:
+Gibbs Sampler for Probit Extremal Membership Model where:
 
-$\pi(y_i) = \  standardized \ y_i^\beta$
+$\pi(y_i) =\Phi(\beta y_i + \epsilon)$
 
-steps a and b stay the same:
+steps a and b stay the same
 
-c. Sample $\beta$ using a conditional metropolis-hastings step.
+c. Sample $C_i$ with probability
+
+$$P(C_i = 0) = \frac{f(B_i, B_0)}{f(B_i, B_0) + f(B_i, B_1)} $$
+
+d. And then run a data augmented probit model with $y_i$ as the data and $C_i$ as the response.
+  i. Sample $z_i$ from $truncated-normal(0, \infty, y_i \beta, 1)$ if $C_i = 1$ and $truncated-normal(-\infty,0, y_i \beta, 1)$ if $C_i = 0$. 
+  ii. Sample $\beta$ from $N(\frac{Y^TZ}{Y^TY}, \frac{1}{Y^TY})$
 
 d. repeat
