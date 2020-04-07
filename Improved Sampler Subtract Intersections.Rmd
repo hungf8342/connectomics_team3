@@ -8,7 +8,110 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+## Reading in Data
 
+We read in the MWM data and connectome matrices:
+```{r cars}
+mwm<-read.csv("data/MWM.csv")
+mwmlong<-read.csv("data/MWMlong.csv")
+chasssy<-read_excel("data/CHASSSYMM3AtlasLegends.xlsx")
+```
+
+
+```{r}
+filePaths <- list.files("data/Connectomes",
+                        "\\.csv$", full.names = TRUE)
+connectome_matlist <- lapply(filePaths,function(x) read.csv(x,header=FALSE) %>% as.matrix())
+
+network <- connectome_matlist[[1]]
+network2 <- connectome_matlist[[2]]
+```
+
+Binarizing Matrix Function:
+```{r}
+# takes matrix (matr) and binarizes each element 
+# based on a threshold (strict less than)
+
+binarize_matrix <- function(matr, threshold) {
+  
+  for (i in 1:length(matr)) {
+    matr[[i]] <- ifelse(matr[[i]] < threshold, 0, 1)
+  }
+  
+  return(matr)
+}
+
+```
+Normalize
+```{r}
+normalize <- function(x){ 
+  return((x-min(x))/(max(x)-min(x)))}
+```
+
+Difference in Networks (binarized matrices)
+```{r}
+# returns vector of number of edge deletions and additions needed for 
+# binarized matr_1 to become binarized matr_2
+
+network_diffs <- function(matr_1,matr_2,threshold) {
+  
+  # frequency matrix of -1,0,1 resulting from difference of bin. matrices
+  diff_freq_matr <- (binarize_matrix(matr_2,threshold) - 
+    binarize_matrix(matr_1,threshold)) %>% 
+    table() %>%
+    as.matrix()
+  # Avoid NAs
+  if(is.na(diff_freq_matr[3]))
+    diff_freq_matr[3]=0
+  
+  return(diff_freq_matr[c(1,3)])
+}
+```
+
+```{r}
+network_diffs <- function(matr_1,matr_2,threshold) {
+  
+  # frequency matrix of -1,0,1 resulting from difference of bin. matrices
+  diff_freq_matr <- binarize_matrix(matr_2,threshold) - 
+    binarize_matrix(matr_1,threshold)
+  add=sum(diff_freq_matr==1)
+  del=sum(diff_freq_matr==-1)
+  return(c(del,add))
+}
+```
+
+Remove Subdivision 8 from the dataset
+```{r}
+indices=(chasssy$Subdivisions_7!="8_CSF")
+indices=indices[-length(indices)]
+for (i in 1:length(connectome_matlist)) {
+  connectome_matlist[[i]] <- connectome_matlist[[i]][indices,indices]
+}
+```
+
+Indexing Matrices by Runno
+```{r}
+
+# create list of identifiers corresponding to list of connectomes
+regexp <- "N[[:digit:]]{5}"
+matrix_labels <- lapply(filePaths,function(x) str_extract(x,regexp)) %>% unlist()
+
+# takes vector of runnos (string format) and finds corresponding matrices
+# returns vector of matrices if they exist, otherwise returns empty matrix
+
+find_connects <- function(runnos) {
+  
+  idxs <- which(matrix_labels %in% runnos)
+  
+  if (length(idxs) == 0) {
+    print("No matches")
+    return(matrix())
+  }
+  
+  return(connectome_matlist[idxs])
+}
+
+```
 
 Final Distance Function
 ```{r}
@@ -85,7 +188,7 @@ del_B1_diff <- differences[,4]
 R=dim(B0)[1]
 n= length(data)
 Cs=sample(x=c(0,1), size = n, replace = T)
-Psi=matrix(0.5,2,2)
+Psi=matrix(0.9999,2,2)
 Psi_save = matrix(0,iter,4)
 
 #New Parameters to initialize
@@ -128,7 +231,10 @@ for(t in 1:iter){
   # draw latent Cs with Gibbs Step
   
   #Calculate Probability C=0
-  prob_C0 =  (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff)/ (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff + Psi[2,1]^del_B1_diff*Psi[2,2]^add_B1_diff)
+  logpc0=del_B0_diff*log(Psi[1,1])+add_B0_diff*log(Psi[1,2])
+  logpc1=del_B1_diff*log(Psi[2,1])+add_B1_diff*log(Psi[2,2])
+  prob_C0 = 1/(1+exp(logpc1-logpc0))
+  #prob_C0 =  (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff)/ (Psi[1,1]^del_B0_diff*Psi[1,2]^add_B0_diff + Psi[2,1]^del_B1_diff*Psi[2,2]^add_B1_diff)
   
     #Save Prob_C0
   prob_C0_save[t,] <- prob_C0
@@ -196,11 +302,61 @@ return(parameter_list)
 }
 ```
 
+Real Dataset
+```{r}
+##Choose Response
+choose_res=function(mwmlong,matrix_labels,string){
+  #Choose the average speed of  every mouse
+  #String is the desired variable to choose
+  result=rep(0,length(matrix_labels))
+  i=1
+  for (label in matrix_labels) {
+    result[i]=mwmlong %>% 
+    filter(grepl(label,runno,fixed = TRUE)) %>% 
+    select(string) %>% 
+    unlist() %>% 
+    mean(na.rm=TRUE)
+    i=i+1
+  }
+  return(result)
+}
+#Choose avg.sw.speed as a response and normalize
+avg.sw.speed=choose_res(mwmlong = mwmlong, matrix_labels = matrix_labels, "Average.SW.Speed") %>% 
+           normalize()
+B0=connectome_matlist[[which.min(avg.sw.speed)]]
+B1=connectome_matlist[[which.max(avg.sw.speed)]]
+## Remove the extremal networks
+data=connectome_matlist[-c(which.min(avg.sw.speed),which.max(avg.sw.speed))]
+R=dim(data[[1]])[1]
+n=length(data)
+pis=avg.sw.speed[-c(which.min(avg.sw.speed),which.max(avg.sw.speed))]
+#functions that need to be run in order to establish arguments for sampler
+distances <- distance(data)
+intersection <- intersect(data)
+samp2 <- sampler(10000, pis, B0, B1, data, distances, intersection, null = F)
+```
+
+Real Dataset-top 3 Most relevant connectnome to high sw.speed: 310-254, 147-91, 214-51 
+```{r}
+connect_freq=matrix(0,R,R)
+membership_prob=samp2[[3]] %>% colMeans()
+##calculate the strength of connectnomes related to C=1
+for (i in 1:length(data)) {
+  connect_freq=connect_freq+data[[i]]*membership_prob[i]
+}
+which(connect_freq==max(connect_freq), arr.ind = T)
+```
+
+```{r}
+which(connect_freq==sort(connect_freq,decreasing = T)[3], arr.ind = T)
+which(connect_freq==sort(connect_freq,decreasing = T)[5], arr.ind = T)
+```
+
 Example of Analysis on Simulated Data Set
 
 ```{r}
 n=20
-R=10
+R=200
 #Initialize the pis - stand in for standardized memory metric
 unsort_pis=runif(n)
 

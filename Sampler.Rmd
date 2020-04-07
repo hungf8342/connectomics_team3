@@ -233,5 +233,5 @@ for(i in 1:length(connectome_matlist)){
 ```
 Do sampling
 ```{r}
-sampler(iter=30000,pis=avg.sw.speed,B0,B1,data=data)
+sampler(iter=3000,pis=avg.sw.speed,B0,B1,data=data)
 ```
