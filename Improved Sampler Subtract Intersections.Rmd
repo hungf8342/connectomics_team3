@@ -199,13 +199,14 @@ return(parameter_list)
 Example of Analysis on Simulated Data Set
 
 ```{r}
-n=20
+n=40
 R=10
 #Initialize the pis - stand in for standardized memory metric
 unsort_pis=runif(n)
 
 #sort the pis so that they correspond to the networks that vary from B0 to B1
-pis <- sort(unsort_pis)
+
+pis <- sort(unsort_pis, decreasing = T)
 data_set <- list()
 
 #Create two extreme networks
@@ -238,7 +239,10 @@ intersection <- intersect(data)
 #sampler
 samp1 <- sampler(10000, pis, B0, B1, data, distances,intersection, null = T)
 hist(samp1[[1]][,5])
+colMeans(samp1[[1]])
+hist(samp1[[1]][,5])
 samp2 <- sampler(10000, pis, B0, B1, data, distances, intersection, null = F)
+colMeans(samp2[[3]])
 hist(samp2[[1]][,5])
 ```
 

@@ -1,5 +1,5 @@
 ---
-title: "Changepoint Gibbs Sampler"
+title: "Extremal Network Modeling"
 author: "Justin Weltz"
 date: "3/30/2020"
 output: pdf_document
