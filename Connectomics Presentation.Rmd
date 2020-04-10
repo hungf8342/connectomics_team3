@@ -1,0 +1,29 @@
+---
+title: "Connectomics Presentation"
+author: "Justin Weltz"
+date: "4/10/2020"
+output: beamer_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The Model 
+
+- $f(B_i | y_i)$ or $f(y_i | B_i)$?
+\pause
+- We identify the rats with the highest and lowest values of the relevant trait and label the networks associated with these rats $B_1$ and $B_0$
+\pause
+- $P(\Psi, \beta | (B_i, y_i)) \propto \prod_{i=1}^n P(B_i | Y_i, \Phi, \beta)P(\Psi)P(\beta) =$
+
+- $\prod_{i=1}^n  (\Phi(y_i\beta)f(B_i; B_1) + (1-\Phi(y_i\beta))f(B_i; B_0))P(\Psi)P(\beta)$
+\pause
+- $\Psi = \begin{pmatrix} \psi_{00} & \psi_{01} \\ 
+\psi_{10} & \psi_{11} \end{pmatrix}$
+\pause
+- $f(B_i; B_0) = \prod_{j=1}^R \prod_{l<j}        \psi_{00}^{1(B_i[j,l]=1,B_0[j,l]=0)}\psi_{01}^{1(B_i[j,l]=0,B_0[j,l]=1)}$
+
+- $f(B_i; B_1) = \prod_{j=1}^R \prod_{l<j} \psi_{10}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{11}^{1(B_i[j,l]=0,B_1[j,l]=1)}$
+\pause
+- Introduce latent component indicators $C_i$ and probit regression variables $Z_i$. 

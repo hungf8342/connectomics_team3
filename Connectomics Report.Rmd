@@ -1,0 +1,50 @@
+---
+title: "Fungi Biodiversity in Urban and Rural Areas"
+author: "Justin Weltz, Frances Hung, Rihui Ou"
+fontsize: "11pt"
+output:
+  pdf_document: 
+        latex_engine: xelatex
+  html_document:
+    keep_md: yes
+    fig_caption: TRUE
+urlcolor: blue
+linkcolor: blue
+geometry: margin=0.9in 
+header-includes:
+  \usepackage{adjustbox}
+  \usepackage{float} 
+  \floatplacement{figure}{H}
+---
+\fontsize{10}{11}
+\selectfont
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introduction
+
+### EDA 
+
+### Model
+
+There are two distinct ways of modeling the relationship between a rat's brain connectome and a distinct phenotype. We can specify a likelihood for the trait conditional on the network (which usually involves collapsing the network into a series of summary statistics or fully vectorizing it), or look at the form of the network conditional on the trait. The latter may seem untenable at first - How can one specify complex brain structures based on a one dimensional measured attribute (memory in our case) without making many simplifying assumptions? - but we approached it using a novel method that takes advantage of the data to specify the likelihood. The inspiration for our model arises from the idea that, while there isn't much information apriori for defining a probability model for networks conditional on traits, there is a lot of structure in the data that can contextualize brain variation across rats. In order to operationalize this shared structure, we identify the rats with the highest and lowest values of the relevant trait. We label the networks associated with these rats $B_1$ and $B_0$ respectively and define the model as follows:
+
+$$P(\Psi, \beta | (B_i, y_i)) \propto \prod_{i=1}^n P(B_i | Y_i, \Phi, \beta)P(\Psi)P(\beta) = \prod_{i=1}^n  (\Phi(y_i\beta)f(B_i; B_1) + (1-\Phi(y_i\beta))f(B_i; B_0))P(\Psi)P(\beta)$$
+where
+
+$$\Psi = \begin{pmatrix} \psi_{00} & \psi_{01} \\ 
+\psi_{10} & \psi_{11} \end{pmatrix}$$
+
+$$f(B_i; B_0) = \prod_{j=1}^R \prod_{l<j}        \psi_{00}^{1(B_i[j,l]=1,B_0[j,l]=0)}\psi_{01}^{1(B_i[j,l]=0,B_0[j,l]=1)}$$
+$$f(B_i; B_1) = \prod_{j=1}^R \prod_{l<j} \psi_{10}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{11}^{1(B_i[j,l]=0,B_1[j,l]=1)}$$
+
+Generally this likelihood models every network as an average of the two extremal networks weighted by how close they are (how many edges have to be removed or added in order to get from one network to the other) to the two data defined extremes. The $\Psi$ parameters indicate how dense the clusters around the minimum and maximum are and the $\beta$ parameter indicates whether or not there is a relationship between the trait and brain structure. Not only is this model easily interpretable, it is also possible to find all the full conditionals in closed form if we introduce two latent variables, the component indicators (if we think of each $f(B_i,B_0),f(B_i, B_1)$ as the two components of a mixture model) and the probit regression variable (standard in probit models), making posterior calculations straightforward using Gibbs Sampling.
+
+### Results 
+
+### Discussion
+
+### Apendix
+
