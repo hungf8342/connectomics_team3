@@ -113,6 +113,61 @@ find_connects <- function(runnos) {
 
 ## EDA
 
+### Swim EDA
+
+
+The time and distance swum in the SW corner is dependent on swim speed (which we can see using the average pool speed) as well as mouse interest in that region. Because higher relative time and distance swum in the SW corner is better, we use the normalized SW times and distances. 
+
+A similar issue appears with Pool time (the time it takes for the mouse to find the target).
+
+```{r}
+mwmlong %>%  drop_na %>% 
+  filter(grepl("Day",Day)==TRUE) %>%
+  group_by(Day) %>% 
+  summarise(mean(Pool.time), mean(NormSWTime),mean(NormSWDist))
+```
+
+
+In general, mice become faster at finding the target, with more relative time and distance spent swimming in the target quadrant.
+
+```{r}
+day <- mwmlong %>%   drop_na %>% 
+  filter(grepl("Day",Day)==TRUE) %>%
+  group_by(runno,Day,age_group) %>% 
+  summarise(NormSWTime_mu=mean(NormSWTime),NormSWDist_mu=mean(NormSWDist))
+ggplot(day,aes(x=NormSWTime_mu,color=age_group)) + geom_histogram() + facet_grid(Day ~ .)
+ggplot(day,aes(x=NormSWDist_mu,color=age_group)) + geom_histogram() + facet_grid(Day ~ .)
+```
+
+We look at the difference in mean SW dist, SW speed, and pool time for each subject between day 5 and day 1. Almost all mice who started with low memory scores showed improvement, while mice which started with high memory scores showed modest variation in whether they improved or regressed.
+
+This suggests that we should take into account starting memory score as well as change in memory score over the five days.
+
+```{r}
+diffs_51 <- mwmlong %>% drop_na %>% 
+  filter(grepl("Day",Day)==TRUE) %>%
+  select(runno,Day,NormSWTime,NormSWDist,Pool.time) %>%
+  #find day and runno-wise mean stats
+  group_by(runno,Day) %>% summarise(mu_Dist=mean(NormSWDist),
+                                     mu_Time=mean(NormSWTime),
+                                     mu_pool=mean(Pool.time)) %>%
+  pivot_wider(names_from = Day, values_from = c(mu_Dist,mu_Time,mu_pool)) %>%
+  #find differences between day5 and day1 mean stats
+  mutate(diff_dist=mu_Dist_Day5-mu_Dist_Day1,
+         diff_time=mu_Time_Day5-mu_Time_Day1,
+         diff_pool=mu_pool_Day5-mu_pool_Day1,
+         high_ender = (mu_Dist_Day5 >=0.6),
+         high_starter=(mu_Dist_Day1 >=0.4)) %>%
+  select(runno,diff_dist,diff_time,diff_pool,high_starter,high_ender)
+
+ggplot(diffs_51,aes(x=diff_dist,fill=high_ender)) +geom_histogram() +facet_grid(.~high_starter)
+ggplot(diffs_51,aes(x=diff_time,fill=high_ender)) +geom_histogram()+facet_grid(.~high_starter)
+ggplot(diffs_51,aes(x=diff_pool,fill=high_ender)) +geom_histogram()+facet_grid(.~high_starter)
+
+```
+
+
+
 For Raw Matrices
 ```{r}
 mean_connectome <- Reduce("+", connectome_matlist) / length(connectome_matlist)
@@ -294,7 +349,6 @@ chordDiagram(bin_top_sd_sort %>% select(Hemisphere.x,Hemisphere.y))
 title(main="10 Connections w/ Most Variance (Binarized): Hemisphere Interaction")
 dev.off()
 ```
-
 
 
 
