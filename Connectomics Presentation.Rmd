@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Preprocessing Data
 
 - Binarizing connectome matrices (using chosen thresholds)
-```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '49%',out.height="20%,fig.show='hold',fig.align='center'}
+```{r var_heat_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '49%',out.height='20%',fig.show='hold',fig.align='center'}
 knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/var_heatmap_bin.png"))
 ```
 
@@ -31,12 +31,12 @@ knitr::include_graphics("Frances/plots/mean_sws.png")
 - Account for lucky mice on the first day
 \pause
 
-```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+```{r std_dist_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
 knitr::include_graphics("Frances/plots/swdist_diffs.png")
 ```
 ## Memory Metrics (cont.)
 
-```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+```{r std_time_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
 knitr::include_graphics("Frances/plots/swtime_diffs.png")
 ```
 
