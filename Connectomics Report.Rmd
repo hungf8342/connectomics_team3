@@ -25,7 +25,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Introduction
 
+Finding relationships between brain structure and physiological behavior is of great interest for proactively diagnosing conditions like autism. Researchers ran experiments on 55 mice to test their memory capacity and then measured the white brain matter connections between specific parts of the brain. The experiment consists of putting the mice in a water maze and seeing how long and far they swim to get to a target quadrant.
+
 ### EDA 
+
+Our goal is to find a connection between different mouse brain structure connections and memory capacity. A natural initial analysis is to look at the variance in mouse brain structures. We focus on variance in mouse connection existence as opposed to mouse connection strength. This entails binarizing the connectome matrices so that each connectome entry is $0$ if no white matter connections exist and $1$ otherwise.
+
+We further explore good memory measures for the mice. 
 
 ### Model
 
