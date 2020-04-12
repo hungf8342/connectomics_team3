@@ -25,7 +25,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Introduction
 
-Finding relationships between brain structure and physiological behavior is of great interest for proactively diagnosing conditions like autism and attention deficit disorders. Researchers ran experiments on 55 mice to test their memory capacity and then measured the white brain matter connections between specific parts of the brain. The main memory experiment consisted of putting the mice in a water maze and seeing how long and far they swam to get to a target quadrant. The times to get to the target and distance swum in the quadrant were recorded over five days for each mouse. 
+Finding relationships between brain structure and physiological behavior is of great interest for proactively diagnosing conditions like autism and attention deficit disorders. In our study of interest, researchers ran experiments on 55 mice to test their memory capacity and then measured the white brain matter connections between different brain structures. The main memory experiment consisted of putting the mice in a water maze and seeing how long and far they swam in a target quadrant. The time and distance swum in the quadrant were recorded over four daily trials and five days for each mouse. 
 
 The white brain matter connections are represented as a $332 \times 332$ connectome matrix for each mouse. Each of the indices represents a different structure in the brain; we can assign hierarchical labels to these structures. 
 

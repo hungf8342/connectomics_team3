@@ -135,17 +135,32 @@ day <- mwmlong %>%   drop_na %>%
   filter(grepl("Day",Day)==TRUE) %>%
   group_by(runno,Day,age_group) %>% 
   summarise(NormSWTime_mu=mean(NormSWTime),NormSWDist_mu=mean(NormSWDist))
-ggplot(day,aes(x=NormSWTime_mu,color=age_group)) + geom_histogram() + facet_grid(Day ~ .)
-ggplot(day,aes(x=NormSWDist_mu,color=age_group)) + geom_histogram() + facet_grid(Day ~ .)
+normswtime_means <- ggplot(day,aes(x=NormSWTime_mu)) + geom_histogram() + facet_grid(Day ~ .) +
+  labs(title="Mean Individual Normalized SWTimes by Day") + xlab("Mean Individual NormSWTime")
+ggsave("plots/mean_swtimes.png",normswtime_means,width=6,height=10)
+normswdist_means <- ggplot(day,aes(x=NormSWDist_mu)) + geom_histogram() + facet_grid(Day ~ .)  +
+  labs(title="Mean Individual Normalized SWDists by Day") + xlab("Mean Individual NormSWDist")
+ggsave("plots/mean_sws.png",width=10,height=6, arrangeGrob(normswdist_means,normswtime_means,ncol=2))
 ```
 
 We look at the difference in mean SW dist, SW speed, and pool time for each subject between day 5 and day 1. Almost all mice who started with low memory scores showed improvement, while mice which started with high memory scores showed modest variation in whether they improved or regressed.
 
-This suggests that we should take into account starting memory score as well as change in memory score over the five days.
+This suggests that we could take into account starting memory score as well as change in memory score over the five days.
+
+
+```{r}
+mwmlong %>%   drop_na %>% 
+  filter(grepl("Day",Day)==TRUE,runno !="") %>%
+  group_by(runno,Day) %>%
+  summarise(NormSWDist=mean(NormSWDist),NormSWTime=mean(NormSWTime)) %>%
+  group_by(Day) %>% 
+  summarise(q25_dist=quantile(NormSWDist,0.25),q75_dist=quantile(NormSWDist,0.75),
+            q25_time=quantile(NormSWTime,0.25), q75_time=quantile(NormSWTime,0.75))
+```
 
 ```{r}
 diffs_51 <- mwmlong %>% drop_na %>% 
-  filter(grepl("Day",Day)==TRUE) %>%
+  filter(grepl("Day",Day)==TRUE,runno!="") %>%
   select(runno,Day,NormSWTime,NormSWDist,Pool.time) %>%
   #find day and runno-wise mean stats
   group_by(runno,Day) %>% summarise(mu_Dist=mean(NormSWDist),
@@ -156,14 +171,21 @@ diffs_51 <- mwmlong %>% drop_na %>%
   mutate(diff_dist=mu_Dist_Day5-mu_Dist_Day1,
          diff_time=mu_Time_Day5-mu_Time_Day1,
          diff_pool=mu_pool_Day5-mu_pool_Day1,
-         high_ender = (mu_Dist_Day5 >=0.6),
-         high_starter=(mu_Dist_Day1 >=0.4)) %>%
+         high_ender = ifelse((mu_Dist_Day5 >=0.65 | mu_Time_Day5 >=0.8), "Day 5 Top 25%", "Day 5 Bottom 75%"),
+         high_starter=ifelse((mu_Dist_Day1 >=0.43 | mu_Time_Day1 >=0.44),"Day 1 Top 25%", "Day 1 Bottom 75%")) %>%
   select(runno,diff_dist,diff_time,diff_pool,high_starter,high_ender)
 
-ggplot(diffs_51,aes(x=diff_dist,fill=high_ender)) +geom_histogram() +facet_grid(.~high_starter)
-ggplot(diffs_51,aes(x=diff_time,fill=high_ender)) +geom_histogram()+facet_grid(.~high_starter)
-ggplot(diffs_51,aes(x=diff_pool,fill=high_ender)) +geom_histogram()+facet_grid(.~high_starter)
+swdist_diffs <- ggplot(diffs_51,aes(x=diff_dist,fill=high_ender)) +geom_histogram() +facet_grid(.~high_starter) +
+  labs(title="Standardized SWDist Differences Between Day 1 and Day 5") +
+  xlab("Std. SWDistance: Day 5 - Day 1")
 
+swtime_diffs <- ggplot(diffs_51,aes(x=diff_time,fill=high_ender)) +geom_histogram()+facet_grid(.~high_starter) +
+  labs(title="Standardized SWTime Differences Between Day 1 and Day 5") +
+  xlab("Std. SWTime: Day 5 - Day 1")
+
+ggsave("plots/swdist_diffs.png",swdist_diffs,width=10,height=6)
+ggsave("plots/swtime_diffs.png",swtime_diffs,width=10,height=6)
+ggsave("plots/swdiffs.png",arrangeGrob(swdist_diffs,swtime_diffs,padding=1))
 ```
 
 

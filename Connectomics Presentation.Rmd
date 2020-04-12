@@ -9,6 +9,39 @@ output: beamer_presentation
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Preprocessing Data
+
+- Binarizing connectome matrices (using chosen thresholds)
+```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '49%',out.height="20%,fig.show='hold',fig.align='center'}
+knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/var_heatmap_bin.png"))
+```
+
+
+## Memory Metrics
+- Long term memory (across days) vs. short-term memory (across trials)
+\pause
+- Mean standardized SW times/distances for each animal
+
+```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '80%'}
+knitr::include_graphics("Frances/plots/mean_sws.png")
+```
+
+## Memory Metrics (cont.)
+- Which mice show the most time/distance improvement?
+- Account for lucky mice on the first day
+\pause
+
+```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+knitr::include_graphics("Frances/plots/swdist_diffs.png")
+```
+## Memory Metrics (cont.)
+
+```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+knitr::include_graphics("Frances/plots/swtime_diffs.png")
+```
+
+-Differences of target times/distances appear roughly normal 
+
 ## The Model 
 
 - $f(B_i | y_i)$ or $f(y_i | B_i)$?
