@@ -1,13 +1,13 @@
 ---
-title: "Fungi Biodiversity in Urban and Rural Areas"
+title: "Clustering Mice Connectomes Based on Memory Metrics"
 author: "Justin Weltz, Frances Hung, Rihui Ou"
 fontsize: "11pt"
 output:
-  pdf_document: 
-        latex_engine: xelatex
   html_document:
     keep_md: yes
     fig_caption: TRUE
+  pdf_document: 
+        latex_engine: xelatex
 urlcolor: blue
 linkcolor: blue
 geometry: margin=0.9in 
@@ -23,6 +23,9 @@ header-includes:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#### Abstract
+For diagnosing and predicting behaviorial changes, scientists are often interested in seeing how observed behavior is correlated with different brain structures. In this case study, we cluster mice brain structures into two groups corresponding to high-performing and low-performing memory scores.  
+
 ### Introduction
 
 Finding relationships between brain structure and physiological behavior is of great interest for proactively diagnosing conditions like autism and attention deficit disorders. In our study of interest, researchers ran experiments on 55 mice to test their memory capacity and then measured the white brain matter connections between different brain structures. The main memory experiment consisted of putting the mice in a water maze and seeing how long and far they swam in a target quadrant. The time and distance swum in the quadrant were recorded over four daily trials and five days for each mouse. 
@@ -31,9 +34,9 @@ The white brain matter connections are represented as a $332 \times 332$ connect
 
 ### EDA 
 
-Our goal is to find a connection between different mouse brain structure connections and memory capacity. A natural initial analysis is therefore to look at the variance in mouse brain structures. We focus on variance in mouse connection existence as opposed to mouse connection strength. This entails binarizing the connectome matrices so that each connectome entry is $0$ if no white matter connections exist and $1$ otherwise.
+Our goal is to find a connection between different mouse brain structure connections and memory capacity. A natural initial analysis is therefore to look at the variance in mouse brain structures. We focus on variance in mouse connection existence as opposed to mouse connection strength. This entails binarizing the connectome matrices so that each connectome entry is $0$ if the white matter connections exceed a chosen threshold (for now, 1) and $1$ otherwise. Binarizing matrices in this way results in drastically different entry-wise variances among the different connectomes, so further work entails carefully choosing thresholds for binarizing our connectomes (Fig. 1).
 
-We additionally explore good memory measures for the 55 subjects. Because of different mouse swimming speeds and differences in total distance swum over each day, we consider the standardized times and differences for each mouse. We see that improvement of these standardized measures over the five days is a possible simple proxy for memory score, as long as we also take into account the relative individual performance on the first day.
+We additionally explore good memory measures for the 55 subjects. Because of different mouse swimming speeds and differences in total distance swum over each day, we consider the standardized times and differences for each mouse. We see that improvement of these standardized measures over the five days is a possible simple proxy for memory score, as long as we also take into account the relative individual performance on the first day (Fig. 2). Other proxies for memory score which we ended up using in our model included the averaged standardized pool times.
 
 ### Model
 
@@ -54,5 +57,15 @@ Generally this likelihood models every network as an average of the two extremal
 
 ### Discussion
 
-### Apendix
+### Appendix
 
+#### Figure 1
+```{r var_heat_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '45%',out.height='60%',fig.show='hold'}
+knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/var_heatmap_bin.png"))
+```
+
+
+#### Figure 2
+```{r std_dist_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '45%'}
+knitr::include_graphics(c("Frances/plots/swdist_diffs.png","Frances/plots/swtime_diffs.png"))
+```
