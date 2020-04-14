@@ -77,7 +77,7 @@ knitr::include_graphics("Frances/plots/avg_pool_speed.png")
 
 - Some regions are almost always connected with other regions: 257, 81....
 
-- Some clusters are related to the high swimming speed:{106,264,144,141...}
+- Some clusters are related to the high pool speed:{106,264,144,141...}
 
 ## Conclusion & Discussion
 
