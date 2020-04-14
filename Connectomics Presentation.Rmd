@@ -22,9 +22,7 @@ knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/va
 \pause
 - Mean standardized SW times/distances for each animal
 
-```{r mean_dist_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '80%'}
-knitr::include_graphics("Frances/plots/mean_sws.png")
-```
+
 
 ## Memory Metrics (cont.)
 - Which mice show the most time/distance improvement?
@@ -60,3 +58,31 @@ knitr::include_graphics("Frances/plots/swtime_diffs.png")
 - $f(B_i; B_1) = \prod_{j=1}^R \prod_{l<j} \psi_{10}^{1(B_i[j,l]=1,B_1[j,l]=0)}\psi_{11}^{1(B_i[j,l]=0,B_1[j,l]=1)}$
 \pause
 - Introduce latent component indicators $C_i$ and probit regression variables $Z_i$. 
+
+## Results--Average Swimming Speed
+```{r  echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+knitr::include_graphics("Frances/plots/avg_sw_speed.png")
+```
+
+- Score each region pair to evaluate how such pair is related to the response. $score=\sum_i p(C_i=1|y)\times connectome[i]$
+
+- Some regions are almost always connected with other regions: 223, 81....
+
+- Some clusters are related to the high swimming speed:{140,253,322,298...}
+
+## Results--Average Pool Speed
+```{r  echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
+knitr::include_graphics("Frances/plots/avg_pool_speed.png")
+```
+
+- Some regions are almost always connected with other regions: 257, 81....
+
+- Some clusters are related to the high swimming speed:{106,264,144,141...}
+
+## Conclusion & Discussion
+
+- We build a extreme graph model to identify clusters that are highly realated to swimming.speed/pool.speed.
+
+- The threshold to binarize the data can be tuned.
+
+- Can also use a temporal modeling to study how the responses change over time.
