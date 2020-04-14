@@ -1,6 +1,6 @@
 ---
 title: "Connectomics Presentation"
-author: "Justin Weltz"
+author: "Frances Hung, Rihui Ou, Justin Weltz"
 date: "4/10/2020"
 output: beamer_presentation
 ---
@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Preprocessing Data
 
 - Binarizing connectome matrices (using chosen thresholds)
-```{r var_heat_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '49%',out.height='20%',fig.show='hold',fig.align='center'}
+```{r var_heat_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '49%',out.height='60%',fig.show='hold',fig.align='center'}
 knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/var_heatmap_bin.png"))
 ```
 
@@ -32,6 +32,7 @@ knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/va
 ```{r std_dist_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
 knitr::include_graphics("Frances/plots/swdist_diffs.png")
 ```
+
 ## Memory Metrics (cont.)
 
 ```{r std_time_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '75%'}
