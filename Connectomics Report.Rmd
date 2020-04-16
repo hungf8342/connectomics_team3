@@ -1,20 +1,18 @@
 ---
 title: "Clustering Mice Connectomes Based on Memory Metrics"
 author: "Justin Weltz, Frances Hung, Rihui Ou"
-fontsize: "11pt"
+geometry: margin=0.9in
 output:
+  pdf_document:
+    latex_engine: xelatex
+  word_document: default
   html_document:
+    fig_caption: yes
     keep_md: yes
-    fig_caption: TRUE
-  pdf_document: 
-        latex_engine: xelatex
-urlcolor: blue
 linkcolor: blue
-geometry: margin=0.9in 
-header-includes:
-  \usepackage{adjustbox}
-  \usepackage{float} 
-  \floatplacement{figure}{H}
+header-includes: \usepackage{adjustbox} \usepackage{float} \floatplacement{figure}{H}
+fontsize: 11pt
+urlcolor: blue
 ---
 \fontsize{10}{11}
 \selectfont
@@ -55,7 +53,23 @@ Generally this likelihood models every network as an average of the two extremal
 
 ### Results 
 
+In this extremal network model, there are two clusters induced by $B_1$ and $B_0$ respectively. The former cluster is a cluster that is centered at $B_1$, while the latter one is centered at $B_0$. We choose $B_1$ to be the network of which subject has the best performance (highest swimming speed/ highest pool speed), and $B_0$ to be the network of which subject has the worst performance (lowest speed). Therefore, the cluster centering at $B_1$, hereinafter refer to as $cluster_{best}$, is presumably the network cluster that contains high performance networks.  
+
+One quantity that is of interest is the posterior membership probability of every $B_i$, i.e., $Pr(B_i\in cluster_{best}|y)$. If this quantity is high, the network $B_i$ is highly related to the best performance cluster and vice versa. To find out the pattern of high performance cluster, we compute an $R\times R$ score matrix using the average of networks weighted by $Pr(B_i\in cluster_{best}|y)$:
+$$
+score=\sum_i Pr(B_i\in cluster_{best}|y)\times B_i
+$$
+In this equation, we use the weight $Pr(B_i\in cluster_{best}|y)$ because $B_i$ should contribute more to the pattern of high performance cluster if $B_i$ is more related to such cluster. A high value of the $(i,j)$ entry of this score matrix indicates that the connection between region $i$ and $j$ is highly related to the high performance.
+
+We first choose the average swimming speed as $y_i$ and find out the connectome pattern that is related to a high swimming speed. We average the swimming speed of each subject $i$ and choose this average as $y_i$. We use a Gibbs sampler as discussed with 10000 iterations to fit this extremal model and compute the score matrix on the log scale. A hierachical clustering is also used to identify clusters in the connectonme data. The result is shown in Figure 3. We find that some regions almost always display high connectivity with other regions. These regions are $\{223,81\}$. We also identify some connectome clusters that are related to high swimming speed by reading off the clustering result of this heatmap.
+
+Next, we choose the average pool speed as the response and use the similar setup to find out the pattern of high pool speed. The results are shown in Figure 4. Similarly, there exists some regions that have high connectivity with all other regions. These regions are $\{173,251,81\}$. Again the region cluster that are realated to high pool speed can be identified by reading off the heatmap.
+
+
+
 ### Discussion
+
+By building an extremal network model, we identify regions clusters that are related to high swimming speed or high pool speed. Our method can be improved in several aspects. The threshold to binarize the network can be tuned to examine how our method is sensitive to the choice of threshold. The way to calculate the posterior score as discussed in the result section should be further examined, because there exists a possibility that the response variable has no significant effect on the clustering of networks. In this case, it is not very meaningful to calculate the score using an average of networks weighted by posterior membership probability. Moreover, our method is sensitive to the choice of extremal networks. If these extremal networks are noisy, our method will also be highly affected by the noise.  
 
 ### Appendix
 
@@ -68,4 +82,14 @@ knitr::include_graphics(c("Frances/plots/variance_heatmap.png","Frances/plots/va
 #### Figure 2
 ```{r std_dist_diff_png, echo=FALSE, message=FALSE, warning=FALSE, out.width = '45%'}
 knitr::include_graphics(c("Frances/plots/swdist_diffs.png","Frances/plots/swtime_diffs.png"))
+```
+
+#### Figure 3
+```{r, echo=FALSE, message=FALSE, warning=FALSE, out.width = '85%'}
+knitr::include_graphics("Frances/plots/avg_sw_speed.png")
+```
+
+#### Figure 4
+```{r, echo=FALSE, message=FALSE, warning=FALSE, out.width = '85%'}
+knitr::include_graphics("Frances/plots/avg_pool_speed.png")
 ```
